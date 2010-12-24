@@ -20,11 +20,21 @@ OptionParser.new do |opts|
   opts.on("-c", "--cache DIR", String, "Log directory; default: '#{options[:cache]}' ") do |cache|
     options[:cache] = cache
   end
+  opts.on("-o", "--output DIR", String, "Output directory; default: '#{options[:output]}' ") do |output|
+    options[:output] = output
+  end
   opts.on_tail("-h", "--help", "Show this message") do
     puts opts
     exit
   end
 end.parse!
+
+unless options[:output]
+  STDERR.puts "Please specify output directory."
+  exit
+end
+output = options[:output]
+FileUtils.mkdir_p output
 
 $card_names = {}
 File.open("card_names.txt", "r") do |f|
@@ -51,11 +61,12 @@ def money(hand)
   res
 end
 
+games = []
 qid = 0
 Dir[File.join(options[:cache], "*.bz2")].sort.each do |file|
   if file =~ /\/(\d+)\.tar\.bz2$/
     Archive.read_open_filename(file) do |ar|
-      logger.info file
+      logger.debug file
       while entry = ar.next_header
         name = entry.pathname
         data = ar.read_data
@@ -119,13 +130,29 @@ Dir[File.join(options[:cache], "*.bz2")].sort.each do |file|
         #logger.debug data if supply.empty? && !aborted
         #
         if !supply.empty? && !aborted && users.values.all? { |x| x.length == 5} 
+          game = []
           users.keys.each do |user|
             points = users[user][0]
-            puts ([points.gsub(/^points:/, ''), "qid:#{qid}", users[user].map{|x| x.to_s}.sort.select {|x| x =~ /^buy:/}] + supply).join(" ")
+            game << ([points.gsub(/^points:/, ''), "qid:#{qid}", '#', users[user].map{|x| x.to_s}.sort.select {|x| x =~ /^buy:/}] + supply).join(" ")
           end
+          games << game
           qid += 1
         end
       end
     end
   end
 end
+
+train = File.open(File.join(output, "train.txt"), 'w')
+test = File.open(File.join(output, "test.txt"), 'w')
+dev = File.open(File.join(output, "dev.txt"), 'w')
+games = games.sort_by { |x| rand }
+subset = games.length / 10
+[[dev, games[0...subset]], [test, games[subset...(2 * subset)]], [train, games[(2*subset)..-1]]].each do |pair|
+  pair[1].each do |game|
+    game.each do |item|
+      pair[0].puts item
+    end
+  end
+end
+[dev, test, train].each {|f| f.close }

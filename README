@@ -1,1 +1,7 @@
 A Dominion bot trained on game logs downloaded from http://dominion.isotropic.org/gamelog/
+
+./svm_learn -z p -t 4 -v 3 -m 1000 ../dumbinion/output/train.txt ../dumbinion/output/model.default
+
+TODO: autmagically find a starting value of C
+Setting default regularization parameter C=0.0069 //power kernel
+C=0.0004 for subsets //subsets kernel
